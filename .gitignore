@@ -1,0 +1,9 @@
+# ROMs are never committed
+*.nes
+*.md.rom
+*.bin
+*.gen
+*.smd
+*.zip
+node_modules/
+out/

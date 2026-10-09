@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Super Sonic Bros.</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="loader">
+    <h1>Super Sonic Bros.</h1>
+    <p class="lede">Sonic in the original Super Mario Bros. levels. Bring your own ROMs: they stay in this browser and are never uploaded.</p>
+    <ul class="roms">
+      <li id="rom-smb"><span class="name">Super Mario Bros. (NES, World)</span><span class="status">Not loaded</span></li>
+      <li id="rom-sonic"><span class="name">Sonic the Hedgehog (Genesis, USA/Europe)</span><span class="status">Not loaded</span></li>
+    </ul>
+    <label class="pick">Choose ROM files…
+      <input id="file" type="file" multiple accept=".nes,.md,.bin,.gen,.smd,.zip">
+    </label>
+    <p class="hint">Or drop both files here. <code>.zip</code> files work too.</p>
+    <p id="rom-error" role="alert"></p>
+    <button id="start" disabled>Start</button>
+    <button id="forget" class="link">Forget saved ROMs</button>
+    <section class="controls">
+      <h2>Controls</h2>
+      <p><kbd>←</kbd><kbd>→</kbd> run · <kbd>Z</kbd>/<kbd>Space</kbd> jump · <kbd>X</kbd> fireball · <kbd>↓</kbd> while running: roll ·
+        <kbd>↓</kbd> + tap jump, then release <kbd>↓</kbd>: spin dash · <kbd>Enter</kbd> start/pause · <kbd>Backspace</kbd> select. Gamepads work too.</p>
+    </section>
+  </main>
+
+  <div id="game" hidden>
+    <canvas id="screen" width="768" height="720"></canvas>
+    <div class="hud-buttons">
+      <button id="mute" title="Mute">🔊</button>
+      <button id="fullscreen" title="Fullscreen">⛶</button>
+    </div>
+    <div id="touch">
+      <div class="dpad">
+        <div data-btn="UP LEFT"></div><div data-btn="UP" class="key">▲</div><div data-btn="UP RIGHT"></div>
+        <div data-btn="LEFT" class="key">◀</div><div data-btn="DOWN"></div><div data-btn="RIGHT" class="key">▶</div>
+        <div data-btn="DOWN LEFT"></div><div data-btn="DOWN" class="key">▼</div><div data-btn="DOWN RIGHT"></div>
+      </div>
+      <div class="mid">
+        <div data-btn="SELECT" class="small">SELECT</div>
+        <div data-btn="START" class="small">START</div>
+      </div>
+      <div class="ab">
+        <div data-btn="B" class="round">B</div>
+        <div data-btn="A" class="round">A</div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
