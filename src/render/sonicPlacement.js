@@ -27,7 +27,7 @@ export function placeSonic(d, assets, k = SONIC_SCALE) {
   if (d.shield && !d.dead && !(d.sizeChange >= 0 && (d.sizeChange >> 2) & 1)) {
     const img = assets.shield[((d.tick ?? 0) >> 1) % 3];
     const scy = d.ball && !d.grounded ? oy : feetY - 20 * k;
-    ops.push({ kind: 'shield', img, fire: d.shield === 2 && FIRE_TINT, x: cx - img.ox * k, y: scy - img.oy * k, w: img.w * k, h: img.h * k, flip: false, behind: d.behind, alpha: 0.6 });
+    ops.push({ kind: 'shield', img, fire: d.shield === 2 && FIRE_TINT, x: cx - img.ox * k, y: scy - img.oy * k, w: img.w * k, h: img.h * k, flip: false, behind: d.behind, alpha: d.shield === 2 ? 0.8 : 0.6 });
   }
   if (d.stars >= 0 && !d.dead) {
     const img = assets.stars[(d.stars >> 2) % 4];

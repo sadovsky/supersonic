@@ -204,6 +204,7 @@ export class SonicPlugin {
     const jumpHeld = (raw & 0x80) !== 0, jumpPressed = jumpHeld && !(this.prevRaw & 0x80);
     this.prevRaw = raw;
 
+    let launched = false;
     // adopt anything SMB changed since our last write (walls, bounces, springs, platforms)
     const curX = r[R.Player_PageLoc] * 256 + r[R.Player_X_Position];
     const curY = r[R.Player_Y_HighPos] * 256 + r[R.Player_Y_Position];
@@ -214,8 +215,14 @@ export class SonicPlugin {
       const nvy = s8(r[R.Player_Y_Speed]) + r[R.Player_Y_MoveForce] / 256;
       if (nvy < -1 && this.vy >= -0.5) {
         // launched upward by SMB: enemy stomp bounce or a jumpspring
-        if (r[R.JumpspringAnimCtrl] || nvy < -6) { this.springing = true; this.ball = false; this.vy = nvy * 1.0; }
+        if (r[R.JumpspringAnimCtrl] || nvy < -6) {
+          // jumpspring: SMB's launch speeds assume Mario's heavier spring gravity;
+          // rescale so the spring sends Sonic to the same height
+          this.springing = true; this.ball = false; this.jumping = false; this.vy = nvy * 0.62;
+        }
         else { this.vy = jumpHeld ? nvy * 1.3 : nvy; this.ball = true; this.jumping = true; }
+        launched = true;
+        if (r[R.Player_State] === 0) r[R.Player_State] = 2;
       } else this.vy = nvy;
     }
 
@@ -375,8 +382,8 @@ export class SonicPlugin {
   // SMB's ScrollHandler, with a look-ahead so a fast Sonic can see further.
   scrollHandler() {
     const r = this.ram;
-    r[R.Player_X_Scroll] = (r[R.Player_X_Scroll] + r[R.Platform_X_Scroll]) & 0xff;
     if (!this.native) { this.lookahead = 0; return HOOK_CONTINUE; }
+    r[R.Player_X_Scroll] = (r[R.Player_X_Scroll] + r[R.Platform_X_Scroll]) & 0xff;
     const speed = Math.abs(this.vx);
     const want = Math.max(0, Math.min(1, (speed - 2.5) / (PHYS.top - 2.5))) * 0x28;
     if (this.vx > 0 && want > this.lookahead) this.lookahead = Math.min(want, this.lookahead + 0.5);

@@ -39,15 +39,17 @@ kbd { background: var(--panel); border: 1px solid #3a4157; border-bottom-width: 
 .hud-buttons button { background: #0008; color: white; border: 1px solid #fff3; border-radius: 6px; width: 36px; height: 36px; cursor: pointer; }
 
 #touch { display: none; }
-body.touch #touch { display: flex; width: 100%; height: min(220px, 35vh); justify-content: space-between; align-items: center; padding: 0 16px max(12px, env(safe-area-inset-bottom)); touch-action: none; user-select: none; -webkit-user-select: none; }
-.dpad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); }
+body.touch #touch { display: flex; width: 100%; height: min(220px, 35vh); justify-content: space-between; align-items: center; gap: 8px; padding: 0 max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); touch-action: none; user-select: none; -webkit-user-select: none; }
+.dpad { display: grid; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); flex-shrink: 0; }
 .dpad .key { background: #2a2f40; color: #aab; display: grid; place-items: center; font-size: 18px; }
 .dpad div:nth-child(2) { border-radius: 8px 8px 0 0; }
 .dpad div:nth-child(8) { border-radius: 0 0 8px 8px; }
 .dpad div:nth-child(4) { border-radius: 8px 0 0 8px; }
 .dpad div:nth-child(6) { border-radius: 0 8px 8px 0; }
 .dpad div:nth-child(5) { background: #2a2f40; }
-.mid { display: flex; gap: 10px; align-self: flex-end; margin-bottom: 20px; }
+.mid { display: flex; gap: 8px; align-self: flex-end; margin-bottom: 20px; }
+@media (max-width: 400px) { .mid { flex-direction: column; } }
 .small { background: #2a2f40; color: #aab; font-size: 11px; padding: 6px 10px; border-radius: 12px; }
-.ab { display: flex; gap: 14px; transform: rotate(-15deg); }
-.round { width: 66px; height: 66px; border-radius: 50%; background: #b8323a; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 20px; }
+.ab { display: flex; gap: 10px; transform: rotate(-15deg); padding-right: 6px; }
+.round { width: 60px; height: 60px; border-radius: 50%; background: #b8323a; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 20px; }
+body.touch #game { justify-content: flex-start; padding-top: env(safe-area-inset-top); }

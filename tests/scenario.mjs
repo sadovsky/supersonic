@@ -42,6 +42,21 @@ export async function scenario({ world = 1, area = 0 } = {}) {
       }
       return api;
     },
+    // crude run-right bot with god mode, used to reach a point in a level
+    botTo(tx, max = 6000) {
+      let lastX = 0, stuck = 0, jump = 0;
+      for (let i = 0; i < max && api.x < tx; i++) {
+        ram[R.StarInvincibleTimer] = 0x10;
+        if (api.state === 0 && api.x === lastX) stuck++; else stuck = 0;
+        lastX = api.x;
+        if (api.state === 0 && stuck > 5) jump = 35;
+        if (ram[R.Player_Y_HighPos] === 1 && ram[R.Player_Y_Position] > 196 && g.sonic.vy > 0 && api.ges === 8) g.sonic.vy = -6.5;
+        let b = BTN.RIGHT; if (jump > 0) { jump--; b |= BTN.A; }
+        api.frame(b);
+      }
+      ram[R.StarInvincibleTimer] = 0;
+      return api;
+    },
     snap(name) { g.snap(name, 2); return api; },
     log(...a) { console.log(`[x=${api.x} y=${api.y} st=${api.state} ges=${api.ges} vx=${g.sonic.vx.toFixed(2)} vy=${g.sonic.vy.toFixed(2)}]`, ...a); return api; },
     block(px, py) { const col = (px >> 4) & 31, row = (py - 32) >> 4; return ram[0x500 + (col >= 16 ? 0xd0 : 0) + row * 16 + (col & 15)]; },

@@ -11,11 +11,13 @@ function toCanvas(img, tint) {
   const ctx = c.getContext('2d');
   const data = new ImageData(new Uint8ClampedArray(img.rgba), img.w, img.h);
   if (tint) {
+    // recolour the blue bubble shield as a fire shield: map brightness onto a red→yellow ramp
     const d = data.data;
     for (let i = 0; i < d.length; i += 4) {
-      // turn the blue shield into a fiery one (swap blue into red/orange)
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      d[i] = Math.max(b, r); d[i + 1] = Math.round((g + b) * 0.45); d[i + 2] = Math.round(r * 0.3);
+      const l = (d[i] * 0.3 + d[i + 1] * 0.5 + d[i + 2] * 0.2) / 255;
+      d[i] = 255 * Math.min(1, 0.55 + l * 0.6);
+      d[i + 1] = 255 * Math.max(0, Math.min(1, l * 1.1 - 0.15));
+      d[i + 2] = 255 * Math.max(0, l - 0.75) * 2;
     }
   }
   ctx.putImageData(data, 0, 0);

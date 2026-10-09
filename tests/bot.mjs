@@ -42,7 +42,14 @@ for (let f = 0; f < frames; f++) {
   if (jumpHold > 0) { b |= BTN.A; jumpHold--; }
   if (ram[R.SwimmingFlag] && (f % 16) < 8) b |= BTN.A; // swim
   if (ram[R.Player_State] === 3 && ram[R.GameEngineSubroutine] === 8) b = BTN.UP; // climb vines
+  // test-only cheat: bounce back out of pits so the bot reaches the end of levels
+  if (!noGod && ram[R.GameEngineSubroutine] === 8 && !ram[R.SwimmingFlag] && ram[R.Player_Y_HighPos] === 1 && ram[R.Player_Y_Position] > 196 && g.sonic.vy > 0) {
+    g.sonic.vy = -6.5;
+  }
   core.frame(b);
+  if (process.env.FINDID) for (let e = 0; e < 6; e++) if (ram[R.Enemy_Flag + e] && ram[R.Enemy_ID + e] === +process.env.FINDID && !globalThis.found) { globalThis.found = 1; log.push(`found id at f${f} x=${x}`); g.snap(`found_${world}_${area}`); }
+  if (process.env.SPRING && ram[R.JumpspringAnimCtrl] && !globalThis.sp) { globalThis.sp = f; }
+  if (globalThis.sp && f - globalThis.sp < 60 && (f - globalThis.sp) % 3 === 0) { log.push(`spring f${f} y=${ram[R.Player_Y_Position]} vy=${g.sonic.vy.toFixed(2)} st=${ram[R.Player_State]} anim=${g.sonic.anim.key} ctl=${ram[R.JumpspringAnimCtrl]}`); if ((f - globalThis.sp) % 9 === 0) g.snap('spring' + (f - globalThis.sp)); }
   const ges = ram[R.GameEngineSubroutine], areaPtr = ram[R.AreaPointer];
   if (ges !== prevGes || areaPtr !== prevArea) {
     log.push(`f${f} ges=${ges} area=${areaPtr.toString(16)} world=${ram[R.WorldNumber] + 1}-${ram[R.LevelNumber] + 1} x=${x} y=${y} mode=${ram[R.OperMode]}`);
