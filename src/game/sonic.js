@@ -133,7 +133,7 @@ export class SonicPlugin {
         if (ram[o] !== 0xf8) slots.push([(off >> 2) + i, ram[o], ram[o + 1], ram[o + 2], ram[o + 3]]);
       }
       this.animate();
-      this.pending = slots.length ? { slots, ...this.drawState() } : this.pendingIfOffscreen(slots);
+      this.pending = slots.length ? { slots, ...this.drawState() } : null;
       return HOOK_RTS;
     });
     H('DrawPlayer_Intermediate', () => {
@@ -148,9 +148,6 @@ export class SonicPlugin {
     // 7. "MARIO" / "LUIGI" -> "SONIC" in all text
     patchText(m.prg);
   }
-
-  // Sonic leaves via the bottom of the screen without OAM sprites; keep drawing.
-  pendingIfOffscreen() { return null; }
 
   latch() {
     const p = this.pending, oam = this.core.m.oam;
@@ -252,18 +249,18 @@ export class SonicPlugin {
         this.vx = Math.max(-P.rollTop, Math.min(P.rollTop, this.vx));
         if (Math.abs(this.vx) < P.unroll) { this.rolling = false; this.ball = false; }
       } else {
-        this.skidding = false;
+        // skid when reversing at speed, and keep skidding until slowed down
+        const reversing = (left && this.vx > 0) || (right && this.vx < 0);
+        this.skidding = reversing && (this.skidding ? Math.abs(this.vx) > 0.5 * S : Math.abs(this.vx) >= P.skid);
         if (left && !this.ducking) {
-          if (this.vx > 0) { this.vx -= P.dec; if (this.vx <= 0) this.vx = -0.5 * S; if (this.vx >= P.skid) this.skidding = true; }
+          if (this.vx > 0) { this.vx -= P.dec; if (this.vx <= 0) this.vx = -0.5 * S; }
           else if (this.vx > -P.top) this.vx = Math.max(this.vx - P.acc, -P.top);
         } else if (right && !this.ducking) {
-          if (this.vx < 0) { this.vx += P.dec; if (this.vx >= 0) this.vx = 0.5 * S; if (this.vx <= -P.skid) this.skidding = true; }
+          if (this.vx < 0) { this.vx += P.dec; if (this.vx >= 0) this.vx = 0.5 * S; }
           else if (this.vx < P.top) this.vx = Math.min(this.vx + P.acc, P.top);
         } else {
           this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), P.frc);
         }
-        if (left && this.vx > 0.01 && this.vx < 3.9 * S) this.skidding = this.skidding || this.vx > 2 * S;
-        if (right && this.vx < -0.01 && this.vx > -3.9 * S) this.skidding = this.skidding || this.vx < -2 * S;
 
         this.ducking = false;
         if (down && !left && !right) {
@@ -328,9 +325,8 @@ export class SonicPlugin {
       if (ny !== Math.floor(y)) y = ny;
       if (r[R.Player_X_Speed] !== before.xs) {
         // hit a wall
-        if (Math.abs(this.vx) > 0 && r[R.Player_X_Speed] === 0) { this.pushing = true; }
+        if (r[R.Player_X_Speed] === 0) this.pushing = true;
         this.vx = s8(r[R.Player_X_Speed]) / 16; dx = 0;
-        if (this.rolling && Math.abs(this.vx) < PHYS.unroll) { /* keep rolling state until friction stops it */ }
       }
       if (r[R.Player_Y_Speed] !== before.ys) {
         this.vy = s8(r[R.Player_Y_Speed]) + r[R.Player_Y_MoveForce] / 256; dy = 0;
@@ -342,10 +338,6 @@ export class SonicPlugin {
         if (!this.rolling) this.ball = false;
       }
       if (r[R.GameEngineSubroutine] !== ges0 || r[R.Player_State] === 3) break; // pipe, flagpole, vine...
-    }
-    if (r[R.Player_State] !== 0 && !this.jumping && grounded && this.vy === 0) {
-      // walked off a ledge
-      this.vy = 0;
     }
     this.fx = x - Math.floor(x); this.fy = y - Math.floor(y);
     if (this.fy < 0) this.fy = 0;
