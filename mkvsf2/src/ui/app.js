@@ -131,13 +131,13 @@ export class App {
     const a = this.def(this.p1), b = this.def(this.p2, this.p1 === this.p2);
     const stage = this.stages ? this.stages(ROSTER[this.p2], ROSTER[this.p1]) : plainStage;
     this.stage = stage || plainStage;
-    this.match = new Match(a, b, { stageW: this.stage.width || 640 });
+    this.match = new Match(a, b, { stageW: this.stage.width || 640, stageGame: ROSTER[this.p2].game });
     const cpu = this.mode === 'versus' ? [] : this.mode === 'arcade' ? [1] : [0, 1];
     const lvl = this.mode === 'arcade' ? Math.min(4, this.level + 1 + Math.floor((this.stageNo || 0) / 3)) : this.level + 1;
     this.ais = [cpu.includes(0) ? new AI(lvl) : null, cpu.includes(1) ? new AI(lvl) : null];
     this.paused = false;
     this.go('fight');
-    this.events.push({ type: 'music', game: ROSTER[this.p2].game, stage: this.stage.name });
+    this.events.push({ type: 'music', stage: this.stage.key || null });
   }
 
   updateFight(pads, start) {

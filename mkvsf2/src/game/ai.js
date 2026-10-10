@@ -32,8 +32,8 @@ export class AI {
       case 'dp': return [[F, 3], [D, 3], [D | F | b, 3]];
       case 'hcf': return [[Bk, 3], [D | Bk, 3], [D, 3], [D | F, 3], [F | b, 3]];
       case '360': return [[F, 2], [D | F, 2], [D, 2], [D | Bk, 2], [Bk, 2], [U | Bk, 1], [U | b, 2]];
-      case 'chargeBF': return [[Bk, 46], [F | b, 3]];
-      case 'chargeDU': return [[D | Bk, 46], [U | b, 3]];
+      case 'chargeBF': return [[Bk, this.chargeTime || 46], [F | b, 3]];
+      case 'chargeDU': return [[D | Bk, this.chargeTime || 46], [U | b, 3]];
       case 'mash': return [[b, 2], [0, 2], [b, 2], [0, 2], [b, 2], [0, 2], [b, 2], [0, 2], [b, 2]];
       case 'all': return [[P.LP | P.HP, 3]];
       case 'bf': return [[Bk, 3], [F, 3], [b, 3]];

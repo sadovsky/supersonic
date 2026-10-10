@@ -10,6 +10,7 @@ export class Match {
   constructor(defA, defB, opts = {}) {
     this.fighters = [new Fighter(defA, 0), new Fighter(defB, 1)];
     this.stageW = opts.stageW || 640;
+    this.stageGame = opts.stageGame || defB.game;   // the announcer is the home game's
     this.wins = [0, 0];
     this.round = 0;
     this.tick = 0;
@@ -34,15 +35,15 @@ export class Match {
     this.phase = 'intro'; this.phaseT = 0;
     this.finisher = false;
     this.banner(`ROUND ${this.round}`, 80, 'round');
-    this.say(`round${Math.min(this.round, 3)}`);
+    this.say('roundStart', this.stageGame);
   }
 
   banner(text, ticks, kind = 'big', delay = 0) { this.banners.push({ text, t: -delay, ticks, kind }); }
-  sound(name, vol = 1) { this.events.push({ type: 'sound', name, vol }); }
-  say(name) { this.events.push({ type: 'voice', name }); }
+  sound(name, vol = 1, game = null) { this.events.push({ type: 'sound', name, vol, game }); }
+  say(name, game = this.stageGame) { this.events.push({ type: 'voice', name, game }); }
   text(t, f) { this.effects.push({ type: 'text', text: t, x: f.x, y: GROUND - f.def.height - 20, t: 0, ticks: 60 }); }
   shake(n) { this.shakeT = Math.max(this.shakeT, n); }
-  announceSpecial(f, sp) { this.events.push({ type: 'special', fighter: f.side, name: sp.name, game: f.def.game }); }
+  announceSpecial(f, sp) { this.events.push({ type: 'special', fighter: f.def.name, name: sp.name, game: f.def.game }); }
 
   projectileThreat(f) {
     return this.projectiles.some(p => p.owner !== f && Math.abs(p.x - f.x) < 140 && Math.sign(p.vx) === Math.sign(f.x - p.x));
@@ -58,14 +59,14 @@ export class Match {
     };
     f.projectile = p;
     this.projectiles.push(p);
-    this.sound('projectile');
+    this.sound('projectile', 1, f.def.game);
   }
 
   onKO(f, from) {
     if (this.phase !== 'fight' && this.phase !== 'finish') return;
     if (this.phase === 'finish') { // a finishing blow
       this.phase = 'ko'; this.phaseT = 0; this.banner(from && from.def.game === 'mk' ? 'FATALITY' : 'K.O.', 140, 'fatal');
-      this.say('fatality'); this.shake(16); this.blood(f, 40);
+      this.say('ko', f.def.game); this.shake(16); this.blood(f, 40);
       return;
     }
     const winner = this.fighters[1 - f.side];
@@ -80,7 +81,7 @@ export class Match {
     }
     this.phase = 'ko'; this.phaseT = 0; this.freeze = 30;
     this.banner('K.O.', 110, 'ko');
-    this.say('ko');
+    this.say('ko', f.def.game);
   }
 
   blood(f, n) {
@@ -106,7 +107,7 @@ export class Match {
     this.phaseT++;
     const [a, b] = this.fighters;
     if (this.phase === 'intro') {
-      if (this.phaseT === 80) { this.banner('FIGHT!', 50, 'fight'); this.say('fight'); }
+      if (this.phaseT === 80) this.banner('FIGHT!', 50, 'fight');
       if (this.phaseT >= 100) { this.phase = 'fight'; this.phaseT = 0; }
     }
     if (this.phase === 'fight' && ++this.frac >= 60) {
@@ -148,7 +149,6 @@ export class Match {
         w.state = 'win'; w.setAnim('victory'); w.vx = 0;
         if (w.hp === 1000) this.banner('FLAWLESS VICTORY', 120, 'win', 0);
         else this.banner(`${w.def.name.toUpperCase()} WINS`, 140, 'win');
-        this.say(w.hp === 1000 ? 'flawless' : 'wins');
       } else { this.banner('DRAW', 120, 'win'); this.wins[0]++; this.wins[1]++; }
     }
     if (this.phaseT === 260) {
@@ -241,12 +241,12 @@ export class Match {
     this.freeze = result === 'block' ? 4 : heavy ? 9 : 6;
     this.spark(x, y, result === 'block' ? 'block' : heavy ? 'heavy' : 'light');
     if (result === 'hit') {
-      this.sound(heavy ? 'hitHeavy' : 'hit');
+      this.sound(heavy ? 'hitHeavy' : 'hit', 1, att.def.game);
       if (heavy) this.shake(5);
       if (att.def.game === 'mk' || def.def.game === 'mk') this.blood(def, heavy ? 10 : 4);
       if (def.combo >= 2) this.text(`${def.combo} HIT COMBO`, att);
       if (hit.burn || hit.shock) def.flash = 20;
-    } else this.sound('block');
+    } else this.sound('block', 1, att.def.game);
   }
 
   spark(x, y, kind) { this.effects.push({ type: 'spark', kind, x, y, t: 0, ticks: kind === 'heavy' ? 14 : 10 }); }

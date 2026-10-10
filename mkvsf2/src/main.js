@@ -97,7 +97,7 @@ function start() {
   addEventListener('resize', fit); fit();
 
   const audio = new Audio();
-  stages.onSamples = (name, s) => audio.addSample(name, s);
+  stages.onSounds = (key, parts) => audio.addEvent(key, parts);
   const unlock = () => audio.resume();
   addEventListener('keydown', unlock);
   addEventListener('pointerdown', unlock);
@@ -115,6 +115,7 @@ function start() {
       const versus = app.mode === 'versus';
       const events = app.update(input.pads(versus), input.takeStart());
       audio.handle(events);
+      for (const e of events) if (e.type === 'music') audio.playMusic(e.stop ? null : stages.musicFor(e.stage));
       ran = true;
     }
     if (ran) { app.draw(r); ctx.putImageData(image, 0, 0); }

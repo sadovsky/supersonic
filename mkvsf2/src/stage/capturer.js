@@ -6,6 +6,7 @@
 // the games' parallax.
 
 import { SNES, PAD } from '../snes/snes.js';
+import { AI } from '../game/ai.js';
 
 const bgr15 = c => {
   const r = (c & 31) << 3, g = ((c >> 5) & 31) << 3, b = ((c >> 10) & 31) << 3;
@@ -109,51 +110,155 @@ class Recorder {
     }
   }
   finish(backdrop) {
+    // every line keeps its scroll for each camera position seen (the games'
+    // parallax isn't always linear): refs is shared, scrolls[i] matches refs[i]
+    const refSet = new Set();
+    for (const d of this.data.values()) for (const [r] of d.samples) refSet.add(r);
+    const refs = Int16Array.from([...refSet].sort((x, y) => x - y));
     const layers = [];
     for (const bg of this.layers) {
       const lines = [];
       for (let y = 0; y < this.lines; y++) {
         const d = this.data.get(bg * 1000 + y);
         if (!d || d.hi < d.lo) { lines.push(null); continue; }
-        const n = d.samples.length;
-        let sx = 0, sy = 0, sxx = 0, sxy = 0;
-        for (const [r, h] of d.samples) { sx += r; sy += h; sxx += r * r; sxy += r * h; }
-        const den = n * sxx - sx * sx;
-        const b = den ? (n * sxy - sx * sy) / den : 0, a = (sy - b * sx) / n;
-        // the outermost columns are often half-streamed: trim them
-        const trim = 0;
-        const strip = d.px.slice(d.lo + trim, d.hi + 1 - trim);
-        lines.push(strip.some(c => c) ? { a, b, u0: d.lo + trim - BASE, strip } : null);
+        const sum = new Float64Array(refs.length), cnt = new Uint16Array(refs.length);
+        for (const [r, h] of d.samples) { const i = refs.indexOf(r); sum[i] += h; cnt[i]++; }
+        const scroll = new Int16Array(refs.length);
+        let last = d.samples[0][1];
+        for (let i = 0; i < refs.length; i++) { if (cnt[i]) last = Math.round(sum[i] / cnt[i]); scroll[i] = last; }
+        const strip = d.px.slice(d.lo, d.hi + 1);
+        lines.push(strip.some(c => c) ? { scroll, u0: d.lo - BASE, strip } : null);
       }
       // lines the game leaves blank (above and below the picture) copy the nearest one
       // (only a few lines: the game blanks the screen there; elsewhere empty means empty)
       const first = lines.findIndex(Boolean);
-      if (first > 0 && first <= 32) for (let y = 0; y < first; y++) lines[y] = lines[first];
+      if (first > 0 && first <= 32) for (let y = 0; y < first; y++) lines[y] = lines[Math.min(lines.length - 1, 2 * first - y)] || lines[first];
       let last = lines.length - 1; while (last > 0 && !lines[last]) last--;
       if (last >= lines.length - 16) for (let y = last + 1; y < lines.length; y++) lines[y] = lines[last];
       layers.push({ bg, lines });
     }
-    return { refMin: this.refMin, refMax: this.refMax, layers, backdrop: this.backdrop ?? backdrop, bg3prio: this.bg3prio };
+    return { refMin: refs[0], refMax: refs[refs.length - 1], refs, layers, backdrop: this.backdrop ?? backdrop, bg3prio: this.bg3prio };
   }
+}
+
+// Our pad bits (see game/commands.js) to each game's SNES buttons
+const OUR = { UP: 1, DOWN: 2, LEFT: 4, RIGHT: 8, LP: 16, HP: 32, LK: 64, HK: 128, BL: 256 };
+const SNES_BUTTONS = {
+  sf2: { LP: PAD.Y, HP: PAD.L, LK: PAD.B, HK: PAD.R, BL: 0 },
+  mk: { LP: PAD.B, HP: PAD.Y, LK: PAD.A, HK: PAD.X, BL: PAD.L },
+};
+function toSnes(game, pad) {
+  let v = 0;
+  if (pad & OUR.UP) v |= PAD.UP; if (pad & OUR.DOWN) v |= PAD.DOWN; if (pad & OUR.LEFT) v |= PAD.LEFT; if (pad & OUR.RIGHT) v |= PAD.RIGHT;
+  for (const k of ['LP', 'HP', 'LK', 'HK', 'BL']) if (pad & OUR[k]) v |= SNES_BUTTONS[game][k];
+  return v;
+}
+
+const FRAME_CYCLES = 1024000 / 60;
+
+// Copy of the sound CPU's state, enough to keep its music playing elsewhere
+function soundSnapshot(s) {
+  const spc = s.spc, st = {};
+  for (const k of ['a', 'x', 'y', 'sp', 'pc', 'n', 'v', 'p', 'b', 'h', 'i', 'z', 'c', 'iplEnabled', 'dspAddr']) st[k] = spc[k];
+  for (const k of ['timerEnable', 'timerTarget', 'timerStage', 'timerOut', 'timerDiv']) st[k] = [...spc[k]];
+  return { cpu: st, ram: spc.ram.slice(), inPorts: spc.inPorts.slice(), outPorts: spc.outPorts.slice(), dsp: spc.dsp.regs.slice() };
 }
 
 export class StageCapturer {
   constructor(game, rom) {
-    this.game = game; this.rom = rom;
+    this.game = game === 'sf' ? 'sf2' : game; this.rom = rom;
     this.base = null;
   }
 
-  // SF2: stage id = the owner's character id (0 Ryu .. 7 Dhalsim, 8+ bosses)
-  captureSf2(stage) {
+  // Run `steps` ([pad, frames] with our pad bits) and return the sounds started
+  // that aren't part of the music: [{ f: frame offset, rate, data }]
+  listen(s, steps, music, extra = 0) {
+    const dsp = s.spc.dsp;
+    dsp.grabSamples = true; dsp.keyOns.length = 0;
+    const t0 = s.spc.cycles;
+    for (const [pad, n] of steps) run(s, n, toSnes(this.game, pad));
+    if (extra) run(s, extra);
+    dsp.grabSamples = false;
+    const out = [];
+    for (const k of dsp.keyOns) {
+      if (music.has(k.srcn) || !k.data || k.data.length < 64) continue;
+      const f = Math.round((k.t - t0) / FRAME_CYCLES);
+      // the same sound started on two voices at once (stereo): keep one
+      if (out.some(o => o.f === f && o.srcn === k.srcn)) continue;
+      out.push({ f, srcn: k.srcn, rate: 32000 * k.pitch / 4096, data: k.data });
+    }
+    dsp.keyOns.length = 0;
+    // times relative to the first sound; nothing past three seconds
+    const f0 = out.length ? Math.min(...out.map(o => o.f)) : 0;
+    return out.map(o => ({ ...o, f: o.f - f0 })).filter(o => o.f < 180);
+  }
+
+  // Sound events for one fighter: round start, hits, specials, KO
+  sounds(s, specials, health, music, intro) {
+    const ev = {};
+    if (intro) ev.roundStart = intro;
+    const start = s.saveState();
+    const approach = [[OUR.RIGHT, 70], [0, 6]];
+    const tryEvent = (name, steps, extra = 50) => { s.loadState(start); const r = this.listen(s, steps, music, extra); if (r.length) ev[name] = r; };
+    tryEvent('hit', [...approach, [OUR.LP, 4]], 40);
+    tryEvent('hitHeavy', [...approach, [OUR.HP, 4]], 50);
+    tryEvent('swing', [[OUR.HK, 4]], 30);
+    tryEvent('land', [[OUR.UP, 6]], 60);
+    // the swing sound is played on its own when an attack starts: keep it out of the hit events
+    const swing = new Set((ev.swing || []).map(p => p.srcn));
+    for (const k of ['hit', 'hitHeavy', 'ko']) if (ev[k]) {
+      const parts = ev[k].filter(p => !swing.has(p.srcn));
+      const f0 = parts.length ? Math.min(...parts.map(p => p.f)) : 0;
+      if (parts.length) ev[k] = parts.map(p => ({ ...p, f: p.f - f0 })); else delete ev[k];
+    }
+    const ai = new AI(4);
+    ai.chargeTime = 75;   // the games want a longer charge than ours
+    for (const sp of specials) {
+      ai.queue = [];
+      ai.push(...ai.motion(sp, ai.buttonFor(sp)));
+      const steps = ai.queue.map(q => [q.pad, q.n]);
+      tryEvent('special:' + sp.name, [[0, 2], ...steps], 90);
+    }
+    // KO: leave the opponent one point of health and hit them
+    s.loadState(start);
+    health(1);
+    const ko = this.listen(s, [...approach, [OUR.HP, 4]], music, 240);
+    if (ko.length) ev.ko = ko;
+    return ev;
+  }
+
+  // SF2: stage id = the owner's character id (0 Ryu .. 7 Dhalsim). The owner
+  // fights (as player 1) so their voices are loaded and can be recorded.
+  captureSf2(stage, specials = []) {
     const s = new SNES(this.rom);
     if (!this.base) {
-      run(s, 1500); tap(s, PAD.START, 4, 120); tap(s, PAD.START, 4, 120); tap(s, PAD.START, 4, 120);
+      run(s, 1500); tap(s, PAD.START, 4, 120); tap(s, PAD.START, 4, 120);
+      run(s, 6, 0, PAD.START); run(s, 40);              // player 2 joins: versus
       this.base = s.saveState();
     } else s.loadState(this.base);
     s.cpu.hooks = new Map([[0x00e90b, c => { c.a = (c.a & 0xff00) | stage; }]]);
+    s.wram[0xcd1] = stage; s.wram[0xed1] = stage === 0 ? 4 : 0;
     const keepAlive = () => { s.wram[0xc2b] = s.wram[0xc35] = 0xb0; s.wram[0xe2b] = s.wram[0xe35] = 0xb0; };
-    tap(s, PAD.B, 4, 180); tap(s, PAD.B, 4, 0);
-    run(s, 640, 0, 0, keepAlive);
+    s.spc.dsp.grabSamples = true; s.spc.dsp.keyOns.length = 0;
+    const t0 = s.spc.cycles;
+    tap(s, PAD.B, 4, 30); run(s, 6, 0, PAD.B);
+    run(s, 1150, 0, 0, keepAlive);
+    // the announcer: sounds in the last two seconds before the fight starts
+    const introAll = s.spc.dsp.keyOns.map(k => ({ f: Math.round((k.t - t0) / FRAME_CYCLES), srcn: k.srcn, rate: 32000 * k.pitch / 4096, data: k.data }));
+    s.spc.dsp.grabSamples = false;
+    // music: what plays for a few seconds of idling
+    const music = new Set();
+    s.spc.dsp.keyOns.length = 0;
+    run(s, 300, 0, 0, () => { keepAlive(); });
+    for (const k of s.spc.dsp.keyOns) music.add(k.srcn);
+    s.spc.dsp.keyOns.length = 0;
+    const musicSnap = soundSnapshot(s);
+    const intro = introAll.filter(k => !music.has(k.srcn) && k.f > 450 && k.data && k.data.length > 64);
+    const t1 = intro.length ? intro[0].f : 0; intro.forEach(k => { k.f -= t1; });
+    intro.splice(0, intro.length, ...intro.filter(k => k.f < 120));
+    const fight = s.saveState();
+    const sounds = this.sounds(s, specials, v => { s.wram[0xe2b] = s.wram[0xe35] = v; }, music, intro);
+    s.loadState(fight);
     // sweep the camera ($19E7) across the stage; the game clamps it to the stage
     const rec = new Recorder([0, 1]);
     const cam = () => s.wram[0x19e7] | (s.wram[0x19e8] << 8);
@@ -169,11 +274,11 @@ export class StageCapturer {
         if (Math.abs(cam() - want) > 12) { want = cam(); break; }   // clamped: reached the end
       }
     }
-    return rec.finish(bgr15(s.cgram[0]));
+    return { ...rec.finish(bgr15(s.cgram[0])), music: musicSnap, sounds };
   }
 
-  // MK: stage = 0..6 (the game picks $000C mod 7)
-  captureMk(stage) {
+  // MK: stage = 0..6 (the game picks $000C mod 7). Player 1 is `fighter`.
+  captureMk(stage, fighter = 1, specials = []) {
     const s = new SNES(this.rom);
     if (!this.base) {
       for (let k = 0; k < 10; k++) for (let f = 0; f < 150; f++) { s.joy[0] = (f % 30) < 8 && k > 3 ? PAD.START : 0; s.runFrame(); if (k > 8 && f > 60) break; }
@@ -182,10 +287,26 @@ export class StageCapturer {
       run(s, 6, 0, PAD.START); run(s, 30);            // player 2 joins: a two-player fight
       this.base = s.saveState();
     } else s.loadState(this.base);
-    s.wram[0x201] = s.wram[0x19ae] = 1; s.wram[0x1b10] = 5;
+    s.wram[0x201] = s.wram[0x19ae] = fighter; s.wram[0x1b10] = fighter === 1 ? 5 : 1;
     s.cpu.hooks = new Map([[0xa4b381, () => { s.wram[0x0c] = stage; s.wram[0x0d] = 0; }]]);
+    s.spc.dsp.grabSamples = true; s.spc.dsp.keyOns.length = 0;
+    const t0 = s.spc.cycles;
     run(s, 6, PAD.B); run(s, 30); run(s, 6, 0, PAD.B);
     run(s, 1400);
+    const introAll = s.spc.dsp.keyOns.map(k => ({ f: Math.round((k.t - t0) / FRAME_CYCLES), srcn: k.srcn, rate: 32000 * k.pitch / 4096, data: k.data }));
+    s.spc.dsp.grabSamples = false;
+    const music = new Set();
+    s.spc.dsp.keyOns.length = 0;
+    run(s, 300);
+    for (const k of s.spc.dsp.keyOns) music.add(k.srcn);
+    s.spc.dsp.keyOns.length = 0;
+    const musicSnap = soundSnapshot(s);
+    const intro = introAll.filter(k => !music.has(k.srcn) && k.f > 600 && k.data && k.data.length > 64);
+    const t1 = intro.length ? intro[0].f : 0; intro.forEach(k => { k.f -= t1; });
+    intro.splice(0, intro.length, ...intro.filter(k => k.f < 120));
+    const fight = s.saveState();
+    const sounds = this.sounds(s, specials, v => { s.wram[0x4fb] = v; }, music, intro);
+    s.loadState(fight);
     const rec = new Recorder([0, 1]);   // BG3 holds the status bar
     const cam = () => s.wram[0x42b] | (s.wram[0x42c] << 8);
     const setCam = v => { s.wram[0x42b] = v & 0xff; s.wram[0x42c] = (v >> 8) & 0xff; };
@@ -198,6 +319,6 @@ export class StageCapturer {
         if (Math.abs(cam() - want) > 12) { want = cam(); break; }
       }
     }
-    return rec.finish(bgr15(s.cgram[0]));
+    return { ...rec.finish(bgr15(s.cgram[0])), music: musicSnap, sounds };
   }
 }

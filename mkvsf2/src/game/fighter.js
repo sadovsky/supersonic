@@ -72,6 +72,7 @@ export class Fighter {
   // ------------------------------------------------------------- update --
   update(pad, opp, match) {
     this.cmd.update(pad, this.face);
+    if (this.pendingSwing) { this.pendingSwing = false; match.sound('swing', 0.6, this.def.game); }
     if (this.flash > 0) this.flash--;
     if (this.invuln > 0) this.invuln--;
     if (this.stunMeter > 0) this.stunMeter = Math.max(0, this.stunMeter - 1.2);
@@ -149,7 +150,7 @@ export class Fighter {
         if (this.y === 0 && this.vy <= 0 && this.timer-- <= 0) {
           this.state = 'down'; this.timer = this.alive ? 40 : 1e9; this.vx = 0;
           if (this.anims.lie && this.def.game === 'sf2') this.setAnim('lie');
-          match.shake(4); match.sound('land');
+          match.shake(4); match.sound('land', 1, this.def.game);
         }
         break;
       }
@@ -201,7 +202,7 @@ export class Fighter {
   }
 
   land(match) {
-    if (this.state === 'jump' || this.state === 'jumpattack') { this.state = 'stand'; this.move = null; this.vx = 0; this.setAnim('idle'); this.jumpAttacked = false; match.sound('land', 0.3); }
+    if (this.state === 'jump' || this.state === 'jumpattack') { this.state = 'stand'; this.move = null; this.vx = 0; this.setAnim('idle'); this.jumpAttacked = false; match.sound('land', 0.3, this.def.game); }
     else if (this.state === 'special') { this.specialLanded = true; }
     else if (this.state === 'launched') { this.vx *= 0.3; }
   }
@@ -216,7 +217,7 @@ export class Fighter {
       this.state = 'jump'; this.vy = JUMP_VY; this.y = 0.01; this.jumpAttacked = false;
       this.vx = dir === 9 ? JUMP_VX * this.face : dir === 7 ? -JUMP_VX * this.face : 0;
       this.setAnim(dir === 8 ? 'jumpUp' : dir === 9 ? 'jumpF' : 'jumpB');
-      match.sound('jump', 0.2);
+      match.sound('jump', 0.5, this.def.game);
       return true;
     }
     if (!(pressed & (B.LP | B.HP | B.LK | B.HK))) return false;
@@ -237,7 +238,7 @@ export class Fighter {
     this.state = opts.air ? 'jumpattack' : 'attack';
     this.setAnim(key);
     if (!opts.air) this.vx = 0;
-    this.lastSound = null;
+    this.pendingSwing = true;
   }
 
   canThrow(opp) {
@@ -250,7 +251,7 @@ export class Fighter {
     opp.state = 'thrown'; opp.timer = 24; opp.thrownBy = this; opp.move = null;
     opp.setAnim('thrown');
     opp.takeDamage(120, match, this);
-    match.sound('throw');
+    match.sound('throw', 1, this.def.game);
   }
 
   // ------------------------------------------------------------ specials --
@@ -310,7 +311,7 @@ export class Fighter {
           const gap = Math.abs(opp.x - this.x) - this.def.bodyHalf - opp.def.bodyHalf;
           if (gap < (sp.range || 30) && this.canThrow(opp)) {
             opp.state = 'thrown'; opp.timer = 40; opp.thrownBy = this; opp.setAnim('thrown');
-            opp.takeDamage(sp.hit.dmg, match, this); match.shake(8); match.sound('throw'); match.sound('hitHeavy');
+            opp.takeDamage(sp.hit.dmg, match, this); match.shake(8); match.sound('throw', 1, this.def.game); match.sound('hitHeavy', 1, this.def.game);
             this.vy = 5; this.y = 0.01;
           }
         }

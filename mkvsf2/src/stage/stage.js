@@ -17,6 +17,11 @@ export function makeStage(data, opts = {}) {
     width: VIEW_W + travel,
     draw(r, camLeft) {
       const ref = refMin + Math.max(0, Math.min(travel, camLeft));
+      // position among the recorded camera positions
+      const refs = data.refs;
+      let k = 0;
+      while (k < refs.length - 2 && refs[k + 1] <= ref) k++;
+      const t = refs.length > 1 ? Math.max(0, Math.min(1, (ref - refs[k]) / ((refs[k + 1] - refs[k]) || 1))) : 0;
       if (typeof backdrop === 'number') r.buf.fill(backdrop);
       else for (let y = 0; y < r.h; y++) r.buf.fill(backdrop[Math.max(0, Math.min(backdrop.length - 1, y - shiftY))], y * r.w, (y + 1) * r.w);
       for (const [L, hi] of plan) {
@@ -25,7 +30,8 @@ export function makeStage(data, opts = {}) {
           const line = L.lines[sy];
           if (!line) continue;
           const strip = line.strip, row = y * r.w;
-          const start = Math.round(line.a + line.b * ref) - line.u0;
+          const sc = line.scroll, hs = sc.length > 1 ? sc[k] + (sc[k + 1] - sc[k]) * t : sc[0];
+          const start = Math.round(hs) - line.u0;
           for (let x = 0; x < r.w; x++) {
             const i = Math.max(0, Math.min(strip.length - 1, start + x));
             const c = strip[i];
