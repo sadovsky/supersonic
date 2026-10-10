@@ -1,0 +1,18 @@
+import { load, run, tap, snap, PAD, SF, OUT } from './harness.mjs';
+import { execSync } from 'node:child_process';
+const s = load(SF);
+const shots = [];
+const sh = (n) => { snap(s, 'sf_' + n); shots.push(`${OUT}/sf_${n}.png`); console.log(n, 'mode', s.ppu[5].toString(16), 'TM', s.ppu[0x2c].toString(16), 'ini', s.ppu[0].toString(16)); };
+run(s, 1500); sh('00');
+tap(s, PAD.START); run(s, 60); sh('01');
+run(s, 60); sh('02');
+tap(s, PAD.START); run(s, 60); sh('03');
+run(s, 60); sh('04');
+tap(s, PAD.START); run(s, 60); sh('05');
+run(s, 60); sh('06');
+tap(s, PAD.B); run(s, 60); sh('07');
+run(s, 120); sh('08');
+tap(s, PAD.B); run(s, 120); sh('09');
+run(s, 300); sh('10');
+run(s, 300); sh('11');
+execSync(`python3 tools/montage.py ${OUT}/m.png 4 ${shots.join(' ')}`);

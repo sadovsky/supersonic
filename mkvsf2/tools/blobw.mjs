@@ -1,0 +1,10 @@
+import { load, run, tap, PAD, SF } from './harness.mjs';
+const s = load(SF);
+const log = [];
+s.onDma = d => { if (d.bAddr === 0x80) log.push(`f${s.frameCount} src ${d.src.toString(16)} cnt ${d.count.toString(16)} wram ${s.wramAddr.toString(16)} pc ${s.cpu.pbr.toString(16)}:${s.cpu.pc.toString(16)}`); };
+const pcs = {};
+const wb = s.writeB.bind(s);
+s.writeB = (r, v) => { if (r === 0x80) { const k = s.cpu.pbr.toString(16) + ':' + s.cpu.pc.toString(16); pcs[k] = (pcs[k] || 0) + 1; } return wb(r, v); };
+run(s, 1500); tap(s, PAD.START); run(s, 120); tap(s, PAD.START); run(s, 120); tap(s, PAD.START); run(s, 120);
+tap(s, PAD.B); run(s, 180); tap(s, PAD.B); run(s, 400);
+console.log(log.join('\n')); console.log(pcs);

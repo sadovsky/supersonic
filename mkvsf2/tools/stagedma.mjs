@@ -1,0 +1,13 @@
+import { load, run, tap, PAD, SF } from './harness.mjs';
+const s = load(SF);
+run(s, 1500); tap(s, PAD.START); run(s, 120); tap(s, PAD.START); run(s, 120); tap(s, PAD.START); run(s, 120);
+tap(s, PAD.B); run(s, 180);
+const log = [];
+s.onDma = d => log.push(`f${s.frameCount} b${d.bAddr.toString(16)} ctrl${d.ctrl.toString(16)} src ${d.src.toString(16)} cnt ${d.count.toString(16)} vaddr ${d.vaddr.toString(16)} vmain ${s.vmain.toString(16)}`);
+const big = [];
+const wb = s.writeB.bind(s);
+let cpuV = 0;
+s.writeB = (r, v) => { if (r === 0x18 || r === 0x19) cpuV++; return wb(r, v); };
+tap(s, PAD.B); run(s, 500);
+console.log(log.filter(l => !l.includes('b4 ') && !/cnt (4|2)0 /.test(l)).slice(0, 80).join('\n'));
+console.log('cpu vram writes', cpuV);

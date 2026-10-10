@@ -1,0 +1,10 @@
+import { load, run, tap, snap, PAD, SF, OUT } from './harness.mjs';
+import { execSync } from 'node:child_process';
+const s = load(SF);
+const shots = [];
+const sh = (n) => { snap(s, 'sf_' + n); shots.push(`${OUT}/sf_${n}.png`); };
+run(s, 1500); tap(s, PAD.START); run(s, 120); sh('0'); tap(s, PAD.START); run(s, 120); sh('1');
+tap(s, PAD.DOWN); run(s, 30); sh('2'); tap(s, PAD.START); run(s, 120); sh('3');
+const tap2 = (pad) => { for (let i = 0; i < 6; i++) { s.joy[1] = pad; s.runFrame(); } s.joy[1] = 0; run(s, 40); };
+tap2(PAD.START); sh('4'); tap(s, PAD.B); run(s, 60); tap2(PAD.B); run(s, 120); sh('5'); run(s, 400); sh('6');
+execSync(`python3 tools/montage.py ${OUT}/m.png 4 ${shots.join(' ')}`);

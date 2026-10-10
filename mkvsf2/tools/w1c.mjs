@@ -1,0 +1,12 @@
+import { load, run, tap, PAD, SF } from './harness.mjs';
+const s = load(SF);
+run(s, 1500); tap(s, PAD.START); run(s, 120); tap(s, PAD.START); run(s, 120); tap(s, PAD.START); run(s, 120);
+tap(s, PAD.B); run(s, 180);
+const pcs = {};
+s.onWrite = (a, v) => { const o = a & 0xffff, b = a >> 16; if ((b < 0x40 || b === 0x7e) && [0xc1c, 0xc18, 0xc20, 0xe1c].includes(o)) { const k = o.toString(16) + ' ' + s.cpu.pbr.toString(16) + ':' + s.cpu.pc.toString(16) + ' v=' + v.toString(16); pcs[k] = (pcs[k] || 0) + 1; } };
+const cg = {};
+const wb = s.writeB.bind(s);
+s.writeB = (r, v) => { if (r === 0x21) { const k = 'cgaddr ' + v.toString(16) + ' @' + s.cpu.pbr.toString(16) + ':' + s.cpu.pc.toString(16); cg[k] = (cg[k] || 0) + 1; } return wb(r, v); };
+s.onDma = d => { if (d.bAddr === 0x22) { const k = `cgdma src ${d.src.toString(16)} cnt ${d.count.toString(16)} cg ${(d.cgaddr>>1).toString(16)} f${s.frameCount}`; cg[k] = (cg[k] || 0) + 1; } };
+tap(s, PAD.B); run(s, 400);
+console.log(pcs, cg);

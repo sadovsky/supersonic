@@ -1,0 +1,11 @@
+import { run, tap, snap, PAD, OUT } from './harness.mjs';
+import { mkToSelect } from './mk-fight.mjs';
+import { execSync } from 'node:child_process';
+const s = mkToSelect();
+const shots = [];
+const sh = n => { snap(s, 'mk_' + n); shots.push(`${OUT}/mk_${n}.png`); };
+sh('a');
+run(s, 120); tap(s, PAD.B, 6, 60); sh('b');
+run(s, 200); sh('c');
+run(s, 300); sh('d');
+execSync(`python3 tools/montage.py ${OUT}/m.png 4 ${shots.join(' ')}`);

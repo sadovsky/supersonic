@@ -1,0 +1,18 @@
+import { mkVersus } from './mk-fight.mjs';
+import { run, PAD } from './harness.mjs';
+const s = mkVersus(0, 0);
+run(s, 30); run(s, 70, PAD.RIGHT); run(s, 20);
+s.wram[0x4fb] = 1;
+run(s, 6, PAD.Y); run(s, 200);
+const hist = {};
+const st = s.cpu.step.bind(s.cpu);
+s.cpu.step = () => { const k = ((s.cpu.pbr << 16) | s.cpu.pc).toString(16); hist[k] = (hist[k] || 0) + 1; return st(); };
+const rb = s.readB.bind(s); const ports = {};
+s.readB = r => { const v = rb(r); if (r >= 0x40 && r < 0x44) { const k = r.toString(16) + '=' + v.toString(16) + '@' + s.cpu.pc.toString(16); ports[k] = (ports[k] || 0) + 1; } return v; };
+run(s, 10);
+console.log(Object.entries(hist).sort((a, b) => b[1] - a[1]).slice(0, 20));
+console.log(ports, 'spc pc', s.spc.pc.toString(16), [...s.spc.inPorts], [...s.spc.outPorts]);
+const w = {};
+s.onWrite = (a, v) => { const o = a & 0xffff, b = a >> 16; if ((b < 0x40 || (b >= 0x80 && b < 0xc0)) && (o === 0xe29 || o === 0xe2b)) { const k = o.toString(16) + '@' + ((s.cpu.pbr << 16) | s.cpu.pc).toString(16); w[k] = (w[k] || 0) + 1; } };
+run(s, 5);
+console.log(w, 'e29', s.wram[0xe29] | s.wram[0xe2a] << 8, 'e2b', s.wram[0xe2b] | s.wram[0xe2c] << 8);

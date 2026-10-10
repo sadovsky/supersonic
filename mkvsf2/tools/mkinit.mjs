@@ -1,0 +1,10 @@
+import { mkToSelect } from './mk-fight.mjs';
+import { run, tap, PAD } from './harness.mjs';
+const s = mkToSelect();
+const pcs = {};
+let last = [];
+const addrs = process.argv.slice(2).map(x => parseInt(x, 16));
+s.onRead = (i) => { last.push(i.toString(16)); if (last.length > 4) last.shift(); };
+s.onWrite = (a, v) => { const o = a & 0xffff, b = a >> 16; if ((b < 0x40 || (b >= 0x80 && b < 0xc0) || b === 0x7e) && addrs.includes(o)) { const pc = (s.cpu.pbr << 16) | s.cpu.pc; const k = o.toString(16) + '@' + pc.toString(16); if (!pcs[k]) pcs[k] = { n: 0, ex: [] }; pcs[k].n++; if (pcs[k].ex.length < 2) pcs[k].ex.push('=' + v.toString(16) + ' rom:' + last.join(',') + ' X=' + s.cpu.x.toString(16) + ' Y=' + s.cpu.y.toString(16)); } };
+tap(s, PAD.B, 6, 30); run(s, 400);
+console.log(JSON.stringify(pcs, null, 0).replace(/},/g, '},\n'));

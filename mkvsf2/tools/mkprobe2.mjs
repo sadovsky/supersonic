@@ -1,0 +1,11 @@
+import { mkVersus } from './mk-fight.mjs';
+import { run, PAD, snap } from './harness.mjs';
+const s = mkVersus(0, 0);
+run(s, 30);
+let log = [];
+const st = s.cpu.step.bind(s.cpu);
+s.cpu.step = () => { const c = s.cpu; if (((c.pbr << 16) | c.pc) === 0x809581) log.push('p' + (s.wram[0x1da] >> 1) + ':' + (c.a & 0xff).toString(16)); return st(); };
+run(s, 90, PAD.RIGHT); run(s, 6, PAD.Y); run(s, 60);
+console.log(log.join(' '));
+snap(s, 'mkhit');
+console.log('timer', s.wram.slice(0, 0x10));
