@@ -3,7 +3,7 @@
 
 import { Fighter } from './fighter.js';
 
-export const VIEW_W = 320, VIEW_H = 224, GROUND = 208;
+export const VIEW_W = 256, VIEW_H = 224, GROUND = 208;
 const ROUND_TIME = 99;
 
 export class Match {

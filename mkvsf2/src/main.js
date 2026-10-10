@@ -76,6 +76,8 @@ function start() {
 
   const stages = new StageLibrary(state.raw);
   const app = new App({ mk: state.mk, sf2: state.sf2 }, { stages: (opp, me) => stages.get(opp, me) });
+  stages.onProgress = () => { app.stageStatus = stages.ready < stages.total ? `CAPTURING STAGES FROM YOUR ROMS ${stages.ready}/${stages.total}` : ''; };
+  stages.onProgress();
   stages.prefetch();
 
   const canvas = $('#screen');

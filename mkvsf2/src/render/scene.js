@@ -89,7 +89,7 @@ function bar(r, x, y, w, frac, rightAlign) {
 
 export function drawHud(r, m) {
   const [a, b] = m.fighters;
-  const W = VIEW_W, bw = 120;
+  const W = VIEW_W, bw = 100;
   bar(r, 12, 14, bw, a.hp / 1000, true);
   bar(r, W - 12 - bw, 14, bw, b.hp / 1000, false);
   r.text(a.def.name.toUpperCase(), 12, 25, WHITE);

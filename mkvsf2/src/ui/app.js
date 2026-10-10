@@ -202,7 +202,7 @@ export class App {
     const steel = k => mix(rgb(220, 240, 255), rgb(40, 90, 220), k);
     r.textCenter('MORTAL KOMBAT', VIEW_W / 2, y, flame, 3);
     r.textCenter('VS', VIEW_W / 2, y + 28, WHITE, 2);
-    r.textCenter('STREET FIGHTER II', VIEW_W / 2, y + 48, steel, 3);
+    r.textCenter('STREET FIGHTER II', VIEW_W / 2, y + 48, steel, 2);
   }
 
   drawTitle(r) {
@@ -216,6 +216,7 @@ export class App {
     }
     this.drawLogo(r, 30);
     if ((this.t >> 5) % 2) r.textCenter('PRESS START', VIEW_W / 2, 120, WHITE, 1);
+    if (this.stageStatus) r.textCenter(this.stageStatus, VIEW_W / 2, 4, GREY, 1, null);
   }
 
   drawMenu(r) {
@@ -227,22 +228,23 @@ export class App {
     });
     const sel = this.menu === MODES.length;
     r.textCenter(`CPU: ${LEVELS[this.level]}`, VIEW_W / 2, 100 + MODES.length * 18 + 6, sel ? GOLD : GREY, 1);
-    r.textCenter('A punch or kick button selects', VIEW_W / 2, 206, GREY, 1, null);
+    r.textCenter('PUNCH OR KICK TO SELECT', VIEW_W / 2, 206, GREY, 1, null);
+    if (this.stageStatus) r.textCenter(this.stageStatus, VIEW_W / 2, 196, GREY, 1, null);
   }
 
   drawSelect(r) {
     this.backdrop(r);
-    r.textCenter('CHOOSE YOUR FIGHTER', VIEW_W / 2, 6, GOLD, 2);
-    const cw = 40, ch = 44, gx = 0, gy = 122;
+    r.textCenter('CHOOSE YOUR FIGHTER', VIEW_W / 2, 4, GOLD, 1);
+    const cw = 32, ch = 44, gx = 0, gy = 122;
     for (let row = 0; row < 2; row++) for (let col = 0; col < 8; col++) {
       const i = GRID[row][col];
       const x = gx + col * cw, y = gy + row * ch;
       r.fillRect(x + 1, y + 1, cw - 2, ch - 2, row === 0 ? rgb(60, 10, 10) : rgb(10, 20, 60));
       const clip = { x0: x + 1, y0: y + 1, x1: x + cw - 1, y1: y + ch - 1 };
-      if (i < 0) { r.textCenter('?', x + cw / 2, y + 14, WHITE, 3); continue; }
+      if (i < 0) { r.textCenter('?', x + cw / 2, y + 12, WHITE, 3); continue; }
       const d = this.defs[i], f = d.anims.idle.frames[0];
       // head-and-shoulders crop
-      r.spriteScaled(f, x + cw / 2, y + 8 - d.body.y0 * 0.7, 0.7, false, { clip });
+      r.spriteScaled(f, x + cw / 2, y + 8 - d.body.y0 * 0.62, 0.62, false, { clip });
     }
     r.textCenter('MORTAL KOMBAT', VIEW_W / 2, gy - 9, RED, 1, null);
     r.textCenter('STREET FIGHTER II', VIEW_W / 2, gy + 2 * ch + 3, BLUE, 1, null);
@@ -255,7 +257,7 @@ export class App {
       r.text(p === 0 ? '1P' : '2P', x + 3, y + 3, c, 1);
       // large preview
       const idx = this.chosen[p] ?? this.cell(this.cursor[p]);
-      const px = p === 0 ? 50 : VIEW_W - 50;
+      const px = p === 0 ? 46 : VIEW_W - 46;
       if (idx >= 0) {
         const d = this.def(idx, p === 1 && this.chosen[0] === idx);
         const f = this.frameOf(d, this.chosen[p] !== null ? 'victory' : 'idle', this.t);
@@ -264,9 +266,9 @@ export class App {
       }
     }
     if (this.mode !== 'versus') {
-      r.textCenter('VS', VIEW_W - 60, 50, GREY, 2);
-      r.textCenter(this.mode === 'arcade' ? 'THE OTHER WORLD' : '', VIEW_W - 60, 72, GREY, 1, null);
-      r.textCenter('AWAITS', VIEW_W - 60, 82, GREY, 1, null);
+      r.textCenter('VS', VIEW_W - 64, 46, GREY, 2);
+      r.textCenter(this.mode === 'arcade' ? 'THE OTHER' : '', VIEW_W - 64, 68, GREY, 1, null);
+      r.textCenter(this.mode === 'arcade' ? 'WORLD AWAITS' : '', VIEW_W - 64, 78, GREY, 1, null);
     }
   }
 
@@ -297,7 +299,7 @@ export class App {
     r.sprite(this.frameOf(d, 'victory', this.t), VIEW_W / 2, 180 - d.foot);
     r.textCenter(d.name.toUpperCase(), VIEW_W / 2, 24, GOLD, 2);
     r.textCenter('HAS CONQUERED', VIEW_W / 2, 46, WHITE, 1);
-    r.textCenter(d.game === 'mk' ? 'THE WORLD WARRIORS' : 'OUTWORLD\'S CHAMPIONS', VIEW_W / 2, 58, WHITE, 1);
+    r.textCenter(d.game === 'mk' ? 'THE WORLD WARRIORS' : 'THE MORTAL KOMBATANTS', VIEW_W / 2, 58, WHITE, 1);
     r.textCenter(d.game === 'mk' ? 'MORTAL KOMBAT REIGNS' : 'STREET FIGHTER REIGNS', VIEW_W / 2, 196, d.game === 'mk' ? RED : BLUE, 1);
   }
 }

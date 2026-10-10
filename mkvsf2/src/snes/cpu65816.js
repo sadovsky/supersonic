@@ -16,6 +16,7 @@ const BASE_CYCLES = [
 export class CPU65816 {
   constructor(bus) {
     this.bus = bus;
+    this.hooks = null;   // optional Map(address -> fn(cpu)) run before the instruction there
     this.reset();
   }
 
@@ -201,6 +202,7 @@ export class CPU65816 {
     }
     if (this.waiting) { if (this.irqLine) this.waiting = false; this.cycles += 4; return 4; }
     if (this.stopped) { this.cycles += 4; return 4; }
+    if (this.hooks) { const h = this.hooks.get((this.pbr << 16) | this.pc); if (h) h(this); }
     const op = this.fetch();
     this.cycles += BASE_CYCLES[op] + (this.mf ? 0 : 1);
     this.exec(op);

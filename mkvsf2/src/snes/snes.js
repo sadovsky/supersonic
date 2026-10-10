@@ -5,6 +5,7 @@
 
 import { CPU65816 } from './cpu65816.js';
 import { SPC700 } from './spc700.js';
+import { DSP } from './dsp.js';
 
 const LINES = 262, VBLANK_LINE = 225;
 const CPU_CYCLES_PER_LINE = 190;
@@ -33,8 +34,12 @@ export class SNES {
     this.joy = [0, 0];
     this.line = 0; this.lineCycle = 0;
     this.latchH = 0; this.latchV = 0; this.hvFlipH = 0; this.hvFlipV = 0;
+    this.lineScroll = new Uint16Array(225 * 8); // BG scroll registers at the start of each line
+    this.lineBackdrop = new Uint16Array(225);   // colour 0 at the start of each line
+    this.linePpu = new Uint8Array(225 * 0x40);  // PPU registers at the start of each line
     this.frameCount = 0;
     this.spc = new SPC700();
+    this.spc.dsp = new DSP(this.spc);
     this.spcDebt = 0;
     this.cpu = new CPU65816(this);
     // optional instrumentation
@@ -198,7 +203,19 @@ export class SNES {
       case 0x4209: this.vtime = (this.vtime & 0x100) | v; break;
       case 0x420a: this.vtime = (this.vtime & 0xff) | ((v & 1) << 8); break;
       case 0x420b: for (let c = 0; c < 8; c++) if (v & (1 << c)) this.runDma(c); break;
-      case 0x420c: this.hdmaen = v; break;
+      case 0x420c: {
+        // channels enabled mid-frame continue from their current table pointer ($43x8)
+        const added = v & ~(this.hdmaen || 0);
+        this.hdmaen = v;
+        if (!this.hdma) this.hdma = [];
+        this.hdma = this.hdma.filter(ch => v & (1 << ch.c));
+        for (let c = 0; c < 8; c++) if (added & (1 << c) && this.line > 0) {
+          const b = c << 4, r = this.dma;
+          const n = r[b + 0xa];
+          this.hdma.push({ c, ctrl: r[b], bAddr: r[b + 1], bank: r[b + 4], addr: r[b + 8] | (r[b + 9] << 8), ibank: r[b + 7], iaddr: r[b + 5] | (r[b + 6] << 8), count: (n & 0x7f) || 128, repeat: (n & 0x80) !== 0, active: true, transfer: false });
+        }
+        break;
+      }
     }
   }
 
@@ -227,9 +244,54 @@ export class SNES {
     this.cpu.cycles += i; // DMA steals time
   }
 
+  // --- HDMA -----------------------------------------------------------------
+  hdmaInit() {
+    this.hdma = [];
+    const en = this.hdmaen || 0;
+    for (let c = 0; c < 8; c++) {
+      if (!(en & (1 << c))) continue;
+      const b = c << 4, r = this.dma;
+      const ch = { c, ctrl: r[b], bAddr: r[b + 1], bank: r[b + 4], addr: r[b + 2] | (r[b + 3] << 8), ibank: r[b + 7], iaddr: 0, count: 0, repeat: false, active: true, transfer: false };
+      this.hdmaLoad(ch);
+      this.hdma.push(ch);
+    }
+  }
+  hdmaLoad(ch) {
+    const v = this.read((ch.bank << 16) | ch.addr); ch.addr = (ch.addr + 1) & 0xffff;
+    if (v === 0) { ch.active = false; return; }
+    ch.count = v & 0x7f; ch.repeat = (v & 0x80) !== 0; ch.transfer = true;
+    if (ch.count === 0) ch.count = 128;
+    if (ch.ctrl & 0x40) { ch.iaddr = this.read((ch.bank << 16) | ch.addr) | (this.read((ch.bank << 16) | ((ch.addr + 1) & 0xffff)) << 8); ch.addr = (ch.addr + 2) & 0xffff; }
+  }
+  hdmaLine() {
+    if (!this.hdma) return;
+    const PAT = [[0], [0, 1], [0, 0], [0, 0, 1, 1], [0, 1, 2, 3], [0, 1, 0, 1], [0, 0], [0, 0, 1, 1]];
+    for (const ch of this.hdma) {
+      if (!ch.active) continue;
+      if (ch.transfer) {
+        for (const off of PAT[ch.ctrl & 7]) {
+          let v;
+          if (ch.ctrl & 0x40) { v = this.read((ch.ibank << 16) | ch.iaddr); ch.iaddr = (ch.iaddr + 1) & 0xffff; }
+          else { v = this.read((ch.bank << 16) | ch.addr); ch.addr = (ch.addr + 1) & 0xffff; }
+          this.writeB((ch.bAddr + off) & 0xff, v);
+        }
+      }
+      ch.count--;
+      ch.transfer = ch.repeat;
+      if (ch.count === 0) this.hdmaLoad(ch);
+    }
+  }
+
   // --- timing --------------------------------------------------------------
   runLine() {
     const cpu = this.cpu;
+    if (this.line === 0) this.hdmaInit();
+    if (this.line < VBLANK_LINE) {
+      this.hdmaLine();
+      this.lineScroll.set(this.scroll, this.line * 8);
+      this.lineBackdrop[this.line] = this.cgram[0];
+      this.linePpu.set(this.ppu, this.line * 0x40);
+    }
     const vIrq = (this.nmitimen & 0x20) && this.line === this.vtime;
     const hIrqEnabled = (this.nmitimen & 0x10) !== 0;
     if (hIrqEnabled ? (!(this.nmitimen & 0x20) || vIrq) : vIrq) {
@@ -265,11 +327,12 @@ export class SNES {
   // --- save states (development tools) ---------------------------------------
   saveState() {
     const pick = o => { const r = {}; for (const [k, v] of Object.entries(o)) if (typeof v !== 'function' && typeof v !== 'object') r[k] = v; else if (ArrayBuffer.isView(v)) r[k] = v.slice(); return r; };
-    return { snes: pick(this), cpu: pick(this.cpu), spc: { ...pick(this.spc), timerEnable: [...this.spc.timerEnable], timerTarget: [...this.spc.timerTarget], timerStage: [...this.spc.timerStage], timerOut: [...this.spc.timerOut], timerDiv: [...this.spc.timerDiv] }, joy: [...this.joy] };
+    return { snes: pick(this), cpu: pick(this.cpu), dsp: this.spc.dsp.regs.slice(), spc: { ...pick(this.spc), timerEnable: [...this.spc.timerEnable], timerTarget: [...this.spc.timerTarget], timerStage: [...this.spc.timerStage], timerOut: [...this.spc.timerOut], timerDiv: [...this.spc.timerDiv] }, joy: [...this.joy] };
   }
   loadState(st) {
-    const put = (o, r) => { for (const [k, v] of Object.entries(r)) { if (ArrayBuffer.isView(v)) o[k].set(v); else o[k] = Array.isArray(v) ? [...v] : v; } };
+    const put = (o, r) => { for (const [k, v] of Object.entries(r)) { if (ArrayBuffer.isView(v)) { if (o[k] && o[k].length === v.length) o[k].set(v); else o[k] = v.slice(); } else o[k] = Array.isArray(v) ? [...v] : v; } };
     put(this, st.snes); put(this.cpu, st.cpu); put(this.spc, st.spc); this.joy = [...st.joy];
+    if (st.dsp) this.spc.dsp.regs.set(st.dsp);
   }
 
   // --- development renderer -------------------------------------------------
@@ -309,9 +372,10 @@ export class SNES {
       const hs = scroll[bg * 2], vs = scroll[bg * 2 + 1];
       const palBase = mode === 0 ? bg * 32 : 0;
       for (let y = 0; y < H; y++) {
-        const py = (y + vs) & 0x3ff;
+        const lhs = this.lineScroll ? this.lineScroll[y * 8 + bg * 2] : hs, lvs = this.lineScroll ? this.lineScroll[y * 8 + bg * 2 + 1] : vs;
+        const py = (y + lvs) & 0x3ff;
         for (let x = 0; x < W; x++) {
-          const px = (x + hs) & 0x3ff;
+          const px = (x + lhs) & 0x3ff;
           const tx = Math.floor(px / ts) & (mapW - 1), ty = Math.floor(py / ts) & (mapH - 1);
           let ma = mapBase + ((ty & 31) << 5) + (tx & 31);
           if (tx & 32) ma += 0x400;
