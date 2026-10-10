@@ -96,3 +96,9 @@ ROMS=~/roms OUT=/tmp/out node tests/all-levels.mjs   # god-mode bot attempts all
 ROMS=~/roms OUT=/tmp/out node tests/bot.mjs 1 0 3000 # one level, world 1 area 0
 ROMS=~/roms OUT=/tmp/out node tests/audio.mjs 900    # renders game audio to game.wav
 ```
+
+## License
+
+The code in this repository is released under the [MIT License](LICENSE). It covers this
+project's own code only. Super Mario Bros. and Sonic the Hedgehog, and everything in their ROMs,
+belong to their respective owners and are not part of this project.
