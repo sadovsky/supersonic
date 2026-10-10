@@ -136,7 +136,11 @@ export class Fighter {
       case 'attack': case 'jumpattack': {
         if (this.state === 'attack') this.vx *= 0.7;
         // chain into a special from a normal (cancel), SF2 style
-        if (canAct && this.state === 'attack' && this.hitCount && pressed) { const sp = this.cmd.special(this.def.specials); if (sp && this.startSpecial(sp, opp, match)) break; }
+        // (rapid-press specials need no hit: the first presses are the normal attacks)
+        if (canAct && this.state === 'attack' && pressed) {
+          const sp = this.cmd.special(this.hitCount ? this.def.specials : this.def.specials.filter(s => s.motion === 'mash'));
+          if (sp && this.startSpecial(sp, opp, match)) break;
+        }
         if (this.state === 'attack' && this.animDone) this.toStand(dir <= 3);
         break;
       }
@@ -398,7 +402,7 @@ export class Fighter {
     }
     this.combo = (match.tick - this.lastHitTick < 40 && this.state === 'hit') ? this.combo + 1 : 1;
     this.lastHitTick = match.tick;
-    const scale = this.combo > 2 ? 0.75 : 1;
+    const scale = (this.combo > 2 ? 0.75 : 1) * (att.def.power || 1);
     this.takeDamage(Math.round(hit.dmg * scale), match, att);
     this.flash = 6;
     if (match.phase === 'finish' && this.state === 'dizzy' && this.alive) return 'hit';

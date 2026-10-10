@@ -7,3 +7,7 @@
 *.zip
 node_modules/
 out/
+*.sfc
+*.smc
+*.swc
+*.fig

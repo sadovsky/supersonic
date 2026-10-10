@@ -58,7 +58,7 @@ async function init() {
 }
 
 const MOTIONS = {
-  qcf: '↓↘→', qcb: '↓↙←', dp: '→↓↘', hcf: '←↙↓↘→', '360': 'full circle', chargeBF: 'hold ← 1s, →', chargeDU: 'hold ↓ 1s, ↑',
+  qcf: '↓↘→', qcb: '↓↙←', dp: '→↓↘', hcf: '←↙↓↘→', '360': '→↘↓↙← (circle)', chargeBF: 'hold ← 1s, →', chargeDU: 'hold ↓ 1s, ↑',
   mash: 'tap rapidly', all: 'both punches', bf: '←→', fb: '→←', bb: '←←', ff: '→→', df: '↓→', db: '↓←', du: '↓↑', bbf: '←←→',
 };
 const BUTTON = { p: 'punch', k: 'kick', lp: 'low punch', hp: 'high punch', lk: 'low kick', hk: 'high kick', any: 'any button' };

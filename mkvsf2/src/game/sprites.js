@@ -152,7 +152,9 @@ export function buildFighter(entry, roms, alt = false) {
   }).filter(Boolean);
 
   const bodyHalf = Math.round((body.x1 - body.x0) * 0.42);
-  return { entry, name: entry.name, game, anims, specials, body, bodyHalf, foot, height, front, palette: mainPal };
+  // SF2's sprites are smaller (shorter reach than MK's digitized fighters): hit a bit harder
+  const power = game === 'sf2' ? 1.15 : 1;
+  return { entry, name: entry.name, game, power, anims, specials, body, bodyHalf, foot, height, front, palette: mainPal };
 }
 
 export { HOLD };

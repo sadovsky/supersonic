@@ -71,7 +71,9 @@ export class Commands {
   special(specials) {
     if (!this.pressed) return null;
     const P = B.LP | B.HP, K = B.LK | B.HK;
-    for (const sp of specials) {
+    // longer motions first: a half circle contains a quarter circle
+    const ORDER = ['360', 'hcf', 'bbf', 'dp', 'chargeBF', 'chargeDU', 'qcf', 'qcb', 'bf', 'fb', 'df', 'db', 'du', 'bb', 'ff', 'all', 'mash'];
+    for (const sp of [...specials].sort((a, b) => ORDER.indexOf(a.motion) - ORDER.indexOf(b.motion))) {
       const mask = sp.button === 'p' ? P : sp.button === 'k' ? K : sp.button === 'any' ? P | K : BUTTONS[sp.button];
       if (sp.motion === 'mash') { if ((this.pressed & mask) && this.pressCount(mask) >= 4) return sp; continue; }
       if (sp.motion === 'all') { if ((this.pressed & mask) && (this.pad & B.LP) && (this.pad & B.HP)) return sp; continue; }
@@ -81,7 +83,8 @@ export class Commands {
         qcb: () => this.seq([[2], [1], [4]]),
         dp: () => this.seq([[6], [2], [3]], 18),
         hcf: () => this.seq([[4], [2], [6]], 24),
-        '360': () => this.seq([[6], [2], [4], [7, 8, 9]], 30) || this.seq([[4], [2], [6], [7, 8, 9]], 30),
+        // a circle: forward, down and back (in either order) — the "up" part is optional
+        '360': () => this.seq([[6, 3, 9], [2], [4, 1, 7]], 30) || this.seq([[4, 1, 7], [2], [6, 3, 9]], 30),
         chargeBF: () => [6, 3, 9].includes(this.dir) && this.sinceBack < 10 && Math.max(this.chargeBackWas, this.chargeBack) >= 40,
         chargeDU: () => [7, 8, 9].includes(this.dir) && this.sinceDown < 10 && Math.max(this.chargeDownWas, this.chargeDown) >= 40,
         bf: () => this.seq([[4], [6]], 14),
