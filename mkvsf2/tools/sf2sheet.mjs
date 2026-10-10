@@ -16,7 +16,7 @@ for (let i = 0; i < W * H; i++) { img[i * 4] = 40; img[i * 4 + 1] = 40; img[i * 
 anims.forEach((an, r) => {
   text(img, W, 2, r * CH + 4, (ids ? ids[r] : +first + r).toString(16));
   an.frames.slice(0, maxF).forEach((f, k) => {
-    const fr = F.frame(f.gfx), pal = F.palettes[process.env.PAL ? +process.env.PAL : fr.pal];
+    const fr = F.frame(f.gfx, process.env.AFTER ? process.env.AFTER.split(',').flatMap(a => F.anims[parseInt(a, 16)].frames.map(q => q.gfx)) : []), pal = F.palettes[process.env.PAL ? +process.env.PAL : fr.pal];
     const bx = 30 + k * CW + 48, by = r * CH + 110; // anchor
     for (let y = 0; y < fr.h; y++) for (let x = 0; x < fr.w; x++) {
       const v = fr.pix[y * fr.w + x]; if (!v) continue;

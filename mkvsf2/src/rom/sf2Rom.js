@@ -85,12 +85,8 @@ function loadFighter(m, c, name) {
     anims.push({ frames, loop });
   }
 
-  // Decode one graphics id to an image: {w, h, ox, oy, pix(Uint8 indices)}
-  const cache = new Map();
-  function frame(gfx) {
-    if (cache.has(gfx)) return cache.get(gfx);
-    // tiles streamed into the player's 4 KB VRAM area ($7000-$77FF words)
-    const vram = new Uint8Array(0x1000);
+  // Stream a graphics id's tiles into the player's 4 KB VRAM area ($7000-$77FF words)
+  function upload(vram, gfx) {
     let e = (dmaTable & 0xff0000) | ((m.r16(dmaTable + gfx * 2) + (dmaTable & 0xffff)) & 0xffff);
     for (let guard = 0; guard < 32; guard++) {
       const n = m.r8(e) << 4;
@@ -102,6 +98,18 @@ function loadFighter(m, c, name) {
       if (page & 0x80) break;
       e += 5;
     }
+  }
+
+  // Decode one graphics id to an image: {w, h, ox, oy, pix(Uint8 indices)}.
+  // `after` lists graphics ids whose tiles are uploaded first: projectiles
+  // reuse tiles the throwing animation left in VRAM.
+  const cache = new Map();
+  function frame(gfx, after = []) {
+    const key = after.length ? gfx + ':' + after.join(',') : gfx;
+    if (cache.has(key)) return cache.get(key);
+    const vram = new Uint8Array(0x1000);
+    for (const g of after) upload(vram, g);
+    upload(vram, gfx);
     const lp = w(blob, gfx * 2);
     const count = blob[lp];
     const pieces = [];
@@ -115,7 +123,7 @@ function loadFighter(m, c, name) {
       pieces.push({ px, py, tile, attr, size });
       x0 = Math.min(x0, px); y0 = Math.min(y0, py); x1 = Math.max(x1, px + size); y1 = Math.max(y1, py + size);
     }
-    if (!pieces.length) { const r = { w: 1, h: 1, ox: 0, oy: 0, pix: new Uint8Array(1), pal: 0 }; cache.set(gfx, r); return r; }
+    if (!pieces.length) { const r = { w: 1, h: 1, ox: 0, oy: 0, pix: new Uint8Array(1), pal: 0 }; cache.set(key, r); return r; }
     const W = x1 - x0, H = y1 - y0;
     const pix = new Uint8Array(W * H);
     // draw back to front: the first piece in the list is in front (lowest OAM index)
@@ -129,7 +137,7 @@ function loadFighter(m, c, name) {
       }
     }
     const r = { w: W, h: H, ox: -x0, oy: -y0, pix, pal: pieces[0].attr & 2 };
-    cache.set(gfx, r);
+    cache.set(key, r);
     return r;
   }
 

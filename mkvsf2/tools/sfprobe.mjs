@@ -22,6 +22,11 @@ const tests = {
   hurricane: [[D, 4], [D | B, 4], [B, 2], [B | LK, 4], [0, 90]], chargeBF: [[B, 70], [F, 2], [F | LP, 4], [0, 90]], chargeDU: [[D, 70], [U, 2], [U | HK, 4], [0, 90]],
   mashLP: [[LP, 2], [0, 2], [LP, 2], [0, 2], [LP, 2], [0, 2], [LP, 2], [0, 2], [LP, 2], [0, 2], [LP, 2], [0, 60]], mashLK: [[LK, 2], [0, 2], [LK, 2], [0, 2], [LK, 2], [0, 2], [LK, 2], [0, 2], [LK, 2], [0, 2], [LK, 2], [0, 60]],
   yoga: [[B, 4], [D | B, 4], [D, 4], [D | F, 4], [F, 2], [F | LP, 4], [0, 90]], spd: [[F, 3], [D | F, 3], [D, 3], [D | B, 3], [B, 3], [U | B, 3], [U, 3], [U | F, 3], [F | LP, 4], [0, 90]],
+  chargeBFH: [[B, 70], [F, 2], [F | HP, 4], [0, 90]], chargeDUK: [[D, 70], [U, 2], [U | LK, 4], [0, 90]], allP: [[LP | MP | HP, 4], [0, 90]],
+  yogaflame: [[B, 4], [D | B, 4], [D, 4], [D | F, 4], [F, 2], [F | HP, 4], [0, 90]],
+  mash2LP: Array.from({ length: 24 }, (_, i) => [i % 2 ? 0 : LP, 2]).concat([[0, 60]]), mash2LK: Array.from({ length: 24 }, (_, i) => [i % 2 ? 0 : LK, 2]).concat([[0, 60]]),
+  mash3LP: Array.from({ length: 30 }, (_, i) => [i % 2 ? 0 : LP, 1]).concat([[0, 60]]), mash3LK: Array.from({ length: 30 }, (_, i) => [i % 2 ? 0 : LK, 1]).concat([[0, 60]]),
+  spd2: [[F, 2], [D | F, 2], [D, 2], [D | B, 2], [B, 2], [U | B, 2], [U, 1], [F | LP, 4], [0, 90]],
   throwF: [[F | HP, 4], [0, 90]], throwB: [[B | HP, 4], [0, 90]], blockStand: [[B, 40]],
 };
 const only = process.argv[5];

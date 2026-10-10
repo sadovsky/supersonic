@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Mortal Kombat vs Street Fighter II</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Cpath d=%27M8 1l7 14H1z%27 fill=%27%23d22%27/%3E%3C/svg%3E">
+</head>
+<body>
+  <main id="loader">
+    <h1><span class="mk">Mortal Kombat</span> <span class="vs">vs</span> <span class="sf">Street Fighter II</span></h1>
+    <p class="lede">The fighters of both Super Nintendo games, taken straight from your own ROMs, in one tournament. Bring your own ROMs: they stay in this browser and are never uploaded.</p>
+    <ul class="roms">
+      <li id="rom-mk"><span class="name">Mortal Kombat (SNES, USA)</span><span class="status">Not loaded</span></li>
+      <li id="rom-sf2"><span class="name">Street Fighter II (SNES, USA)</span><span class="status">Not loaded</span></li>
+    </ul>
+    <label class="pick">Choose ROM files…
+      <input id="file" type="file" multiple>
+    </label>
+    <p class="hint">Or drop both files here. <code>.sfc</code>, <code>.smc</code> and <code>.zip</code> all work.</p>
+    <p id="rom-error" role="alert"></p>
+    <button id="start" disabled>Fight!</button>
+    <button id="forget" class="link">Forget saved ROMs</button>
+    <section class="controls">
+      <h2>Controls</h2>
+      <table>
+        <tr><th></th><th>Player 1</th><th>Player 2 (versus)</th><th>Gamepad</th></tr>
+        <tr><td>Move / jump / crouch</td><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td>arrows</td><td>d-pad, stick</td></tr>
+        <tr><td>Low / high punch</td><td><kbd>U</kbd> <kbd>I</kbd></td><td><kbd>Z</kbd> <kbd>X</kbd></td><td>X, Y</td></tr>
+        <tr><td>Low / high kick</td><td><kbd>J</kbd> <kbd>K</kbd></td><td><kbd>C</kbd> <kbd>V</kbd></td><td>A, B</td></tr>
+        <tr><td>Block</td><td><kbd>L</kbd> or <kbd>Space</kbd>, or hold back</td><td><kbd>B</kbd>, or hold back</td><td>shoulders</td></tr>
+        <tr><td>Start / pause</td><td colspan="2"><kbd>Enter</kbd></td><td>Start</td></tr>
+      </table>
+      <p>Playing alone, either keyboard layout works. Each fighter keeps their own game's special moves; see the move list below the game.</p>
+    </section>
+  </main>
+
+  <div id="game" hidden>
+    <canvas id="screen" width="320" height="224"></canvas>
+    <div class="hud-buttons">
+      <button id="mute" title="Mute">🔊</button>
+      <button id="fullscreen" title="Fullscreen">⛶</button>
+    </div>
+    <div id="touch">
+      <div class="dpad">
+        <div data-btn="UP LEFT"></div><div data-btn="UP" class="key">▲</div><div data-btn="UP RIGHT"></div>
+        <div data-btn="LEFT" class="key">◀</div><div data-btn="DOWN"></div><div data-btn="RIGHT" class="key">▶</div>
+        <div data-btn="DOWN LEFT"></div><div data-btn="DOWN" class="key">▼</div><div data-btn="DOWN RIGHT"></div>
+      </div>
+      <div class="mid"><div data-btn="START" class="small">START</div><div data-btn="BL" class="small">BLOCK</div></div>
+      <div class="pk">
+        <div data-btn="LP" class="round p">LP</div><div data-btn="HP" class="round p">HP</div>
+        <div data-btn="LK" class="round k">LK</div><div data-btn="HK" class="round k">HK</div>
+      </div>
+    </div>
+    <details id="moves"><summary>Move list</summary><div id="movelist"></div></details>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

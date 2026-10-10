@@ -1,0 +1,23 @@
+// Drives the app through its screens with scripted input and saves snapshots.
+import { parseSf2Rom } from '../src/rom/sf2Rom.js';
+import { parseMkRom } from '../src/rom/mkRom.js';
+import { App } from '../src/ui/app.js';
+import { VIEW_W, VIEW_H } from '../src/game/match.js';
+import { Renderer } from '../src/render/renderer.js';
+import { B } from '../src/game/commands.js';
+import { writePng } from './png.mjs';
+import { findRoms } from './roms.mjs';
+const OUT = process.env.OUT || '/tmp/claude-0/-home-user-supersonic/95b0bd18-d1ab-5346-8b3f-3765e31ee336/scratchpad/out';
+const { sf2, mk } = findRoms();
+const app = new App({ sf2: parseSf2Rom(sf2), mk: parseMkRom(mk) });
+const r = new Renderer(VIEW_W, VIEW_H);
+const files = [];
+const snap = n => { app.draw(r); const f = `${OUT}/scr_${n}.png`; writePng(f, VIEW_W, VIEW_H, r.bytes); files.push(f); };
+const run = (n, pad = 0, start = false) => { for (let i = 0; i < n; i++) app.update([i === 0 ? pad : (pad & ~(B.LP | B.HP | B.LK | B.HK)), 0], start && i === 0); };
+run(40); snap('title');
+run(2, 0, true); run(10); snap('menu');
+run(2, B.LP); run(10); run(3, B.RIGHT); run(5); run(3, B.RIGHT); run(5); snap('select');
+run(2, B.LP); run(60); snap('vs');
+run(160); snap('fight1');
+run(200); snap('fight2');
+console.log(files.join(' '));
